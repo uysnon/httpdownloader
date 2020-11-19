@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="webjars/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        function show() {
+            console.log("i'm in show() js");
+            $.ajax({
+                type: "GET",
+                url: "/downloadList",
+                cache: false,
+                timeout: 3000,
+                success: function (html) {
+                    $("#idDownloadsList").html(html);
+                },
+                error: function (e) {
+                    console.log("ERROR: ", e);
+                    display(e);
+                },
+                done: function (e) {
+                    console.log("DONE");
+                }
+            });
+        }
+
+        $(window).on('load', function () {
+            show();
+            setInterval('show()', 500);
+        });
+    </script>
+</head>
+<body>
+
+
+<form th:action="@{/downloadsTableAction}" th:object="${wrapper}" method="post">
+    <div style="display: inline">
+        <div style="display: inline-block;">
+            <table style="display: inline-block;" class="table table-striped table-primary">
+
+                <thead class="ttop">
+                <tr class="table-info">
+                    <td width="20px"><b>N</b></td>
+                    <td width="50px"><b>Выбрать</b></td>
+                    <td width="320px" style="text-align: center"><b>url</b></td>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="download, stat : ${wrapper.downloadList}" th:style="${stat.odd}? 'font-weight: normal;'">
+
+                    <td th:text="${stat.index+1}" width="20px">
+                    </td>
+                    <td width="50px">
+                        <input type="checkbox"
+                               th:name="|downloads[${stat.index}]|"
+                               th:value="${download.url}"
+                               th:checked="${download.selected}"
+                               th:field="*{downloadList[__${stat.index}__].selected}">
+                    </td>
+
+                    <td width="320px">
+                        <input type="text"
+                               size="70"
+                               th:value="${download.url}"
+                               th:field="*{downloadList[__${stat.index}__].url}">
+                    </td>
+
+                    <td>
+                        <input type="hidden"
+                               th:value="${download.id}"
+                               th:field="*{downloadList[__${stat.index}__].id}">
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="idDownloadsList" th:fragment="downloadList" style="display: inline-block;">
+            <table style="display: inline-block;">
+                <tr class="table-info">
+                    <td width="200px"><b>Доступность</b></td>
+                    <td width="200px"><b>Текущая скорость скачивания</b></td>
+                    <td width="200px"><b>Средняя скорость скачивания</b></td>
+                    <td width="200px"><b>Ссылка на файл в бд</b></td>
+                </tr>
+                <tbody>
+
+                <tr th:each="download, stat : ${wrapper.downloadList}" th:style="${stat.odd}? 'font-weight: normal;'">
+                    <td th:text="${download.available.getTitle()}"
+                        th:style="${download.available.isPositive()} ? 'color:green' : 'color:red' "
+                        width="200px">
+                    </td>
+                    <td th:text="${#numbers.formatDecimal(download.speedCurrent, 0, 'COMMA', 2, 'POINT')}+'kb/s'"
+                        width="200px">
+                    </td>
+                    <td th:text="${#numbers.formatDecimal(download.speedAverage, 0, 'COMMA', 2, 'POINT')}+'kb/s'"
+                        width="200px">
+                    </td>
+                    <td>
+                        <a th:if="${download.getDownloadState().ifFileAvailableToRead()}"
+                           th:text="${download.getFullName()}" th:href="'/openFile/'+${download.getId()}"
+                           target="_blank">
+                        </a>
+                        <span th:unless="${download.getDownloadState().ifFileAvailableToRead()}"
+                              th:text="'не готов'"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div>
+        <input type="submit" name="addRow" value="добавить новую загрузку">
+        <input type="submit" name="deleteRows" value="удалить">
+        <input type="submit" name="download" value="скачать">
+        <div style="display: inline">
+            <span>Кол-во потоков для скачивания: </span>
+            <input type="number" th:name="downloadThreadCount" id="counter_products_to_add"
+                   min="1" max="25" step="1" th:value="${downloadThreadCount}">
+        </div>
+
+    </div>
+</form>
+<div th:each="download, stat : ${wrapper.downloadList}">
+    <form th:if="${download.conflictWithDatabaseFound}" th:action="'/conflictWithDatabase/'+ *{id}"
+          th:object="${download}"
+          method="post">
+        <span th:text="'В бд найдена запись с url:'+*{url}+', заменить?'"></span>
+        <input type="submit" th:name="'update'" value="Да">
+        <input type="submit" th:name="'notUpdate'" value="Нет">
+    </form>
+</div>
+
+
+</body>
+</html>
